@@ -50,6 +50,6 @@ public:
 	DWORD GetPID(const wchar_t* proc);
 
 private:
-	bool ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe);
+	LPVOID ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe);
 };
 

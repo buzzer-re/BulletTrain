@@ -1,6 +1,11 @@
 #include "Override.h"
 #include <iostream>
 
+
+// Import libraries
+// Fix realocations
+// Run TLS callbacks
+// Run entrypoint/dllMain
 void __stdcall InternalLoader(InjectedCodeData* iData)
 {
 	PIMAGE_DOS_HEADER dosHdr = reinterpret_cast<PIMAGE_DOS_HEADER>(iData->imageBase);
@@ -11,8 +16,6 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 	// Fix imports
 
 
-
-
 	dllMain(nullptr, DLL_PROCESS_ATTACH, nullptr);
 }
 
@@ -21,29 +24,28 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 {
 	// Read PE
 	File newImage(newImagePath);
-
 	if (!newImage.length) return false;
  
 	// Get process PID and Start the PE image replace
-
 	DWORD pid = GetPID(proc);
 	if (!pid) return false;
-
 
 	HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, NULL, pid);
 
 	if (!hProc || hProc == INVALID_HANDLE_VALUE) return false;
 
-	std::cout << "Process opened! replacing image...";
-	
 	BasicPE basicPE;
-
 	if (!basicPE.ParseBuffer(newImage.data)) return false;
 
-	if (!ReplaceImage(hProc, newImage, basicPE)) return false;
+	LPVOID newImg = ReplaceImage(hProc, newImage, basicPE);
+	if (newImg == nullptr) return false;
+
+	// Temporary, just to parse IAT, reloc and etc (Dev-only)
+	basicPE.ParseBuffer((BYTE*)newImg);
+	basicPE.PrintImports();
 
 	InjectedCodeData iData;
-	iData.imageBase = reinterpret_cast<LPVOID>(basicPE.pOptionalHeader->ImageBase);
+	iData.imageBase = newImg;
 	iData.pGetProcAddress = reinterpret_cast<f_GetProcAddress>(GetProcAddress);
 	iData.pLoadLibraryA = reinterpret_cast<f_LoadLibraryA>(LoadLibraryA);
 
@@ -79,10 +81,8 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 }
 
 
-bool Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
+LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 {
-
-
 	// Alloc image memory
 
 	LPVOID imgMem = VirtualAllocEx(hProc, (LPVOID)pe.pOptionalHeader->ImageBase, pe.pOptionalHeader->SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -90,7 +90,7 @@ bool Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 	if (!imgMem)
 	{
 		// Some error handling msg, whatever.. TODO
-		return false;
+		return nullptr;
 
 	}
 
@@ -100,7 +100,7 @@ bool Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 	{
 		std::printf("Unable to copy PE header!");
 		VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
-		return false;
+		return nullptr;
 	}
 
 	// Write sections
@@ -115,14 +115,14 @@ bool Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 			{
 				std::printf("Unable to write section into process memory! error => %d\n", GetLastError());
 				VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
-				return false;
+				return nullptr;
 			}
 		}
 	}
 
 
 
-	return true;
+	return imgMem;
 }
 
 
