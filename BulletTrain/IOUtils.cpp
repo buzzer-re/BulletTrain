@@ -8,7 +8,7 @@ File::File(const wchar_t* path)
 {
     if (!GetFileAttributes(path)) return;
 
-    HANDLE hFile = CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, NULL, NULL);
+    HANDLE hFile = CreateFile(path, GENERIC_READ, NULL, NULL, OPEN_EXISTING, NULL, NULL);
     if (!hFile || hFile == INVALID_HANDLE_VALUE) return;
 
     this->length = GetFileSize(hFile, NULL);
@@ -18,11 +18,14 @@ File::File(const wchar_t* path)
 
     if (!this->data) return;
 
-    if (!ReadFile(hFile, (LPVOID)this->data, this->length, NULL, NULL))
+    DWORD bytesRead;
+    if (!ReadFile(hFile, (LPVOID)this->data, this->length, &bytesRead, NULL))
     {
         delete[] this->data;
         this->length = 0;
     }
+
+    CloseHandle(hFile);
 }
 
 File::~File()

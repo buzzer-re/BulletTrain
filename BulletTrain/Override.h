@@ -31,7 +31,7 @@ class RemoteBuffer
 public:
 	RemoteBuffer(HANDLE hProc) : data(nullptr), size(0), hProc(hProc) {}
 	~RemoteBuffer() {
-		if (data != nullptr && data != NULL)
+		if (data != nullptr || data != NULL)
 		{
 			VirtualFreeEx(hProc, data, 0, MEM_RELEASE);
 		}

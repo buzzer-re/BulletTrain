@@ -44,6 +44,9 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 	basicPE.ParseBuffer((BYTE*)newImg);
 	basicPE.PrintImports();
 
+	std::printf("End here!\n");
+	return false;
+
 	InjectedCodeData iData;
 	iData.imageBase = newImg;
 	iData.pGetProcAddress = reinterpret_cast<f_GetProcAddress>(GetProcAddress);
@@ -94,24 +97,25 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 
 	}
 
-	// Write header
+	// Get first section entry
 
-	if (!WriteProcessMemory(hProc, imgMem, target.data, sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS), NULL))
+	// Write all header info
+	if (!WriteProcessMemory(hProc, imgMem, target.data, pe.pNtHeader->OptionalHeader.SizeOfHeaders, NULL))
 	{
 		std::printf("Unable to copy PE header!");
 		VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
 		return nullptr;
 	}
 
-	// Write sections
 
 	PIMAGE_SECTION_HEADER pSectionHeader = IMAGE_FIRST_SECTION(pe.pNtHeader);
-
+	// Write sections
 	for (auto i = 0; i < pe.pFileHeader->NumberOfSections; ++i, ++pSectionHeader)
 	{
-		if (pSectionHeader->PointerToRawData)
+		if (pSectionHeader->SizeOfRawData)
 		{
-			if (!WriteProcessMemory(hProc, (BYTE*)imgMem + pSectionHeader->VirtualAddress, target.data + pSectionHeader->PointerToRawData, pSectionHeader->SizeOfRawData, NULL))
+			SIZE_T bytesWritten;
+			if (!WriteProcessMemory(hProc, (BYTE*) imgMem + pSectionHeader->VirtualAddress, target.data + pSectionHeader->PointerToRawData, pSectionHeader->SizeOfRawData, &bytesWritten))
 			{
 				std::printf("Unable to write section into process memory! error => %d\n", GetLastError());
 				VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
@@ -120,9 +124,8 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 		}
 	}
 
-
-
 	return imgMem;
+
 }
 
 
