@@ -1,7 +1,7 @@
 #pragma once
+
 #include <windows.h>
 #include <TlHelp32.h>
-
 #include "IOUtils.h"
 #include "BasicPE.h"
 
@@ -18,7 +18,6 @@ using f_LoadLibraryA = HINSTANCE(WINAPI*)(const char* lpLibFilename);
 using f_GetProcAddress = UINT_PTR(WINAPI*)(HINSTANCE hModule, const char* lpProcName);
 using f_DLL_ENTRY_POINT = BOOL(WINAPI*)(void* hDll, DWORD dwReason, void* pReserved);
 
-
 struct InjectedCodeData 
 {
 	LPVOID imageBase;
@@ -31,7 +30,7 @@ class RemoteBuffer
 public:
 	RemoteBuffer(HANDLE hProc) : data(nullptr), size(0), hProc(hProc) {}
 	~RemoteBuffer() {
-		if (data != nullptr || data != NULL)
+		if (data != nullptr)
 		{
 			VirtualFreeEx(hProc, data, 0, MEM_RELEASE);
 		}

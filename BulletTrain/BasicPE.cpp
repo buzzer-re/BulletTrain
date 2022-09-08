@@ -23,12 +23,10 @@ void BasicPE::PrintImports() const
 	
 	for (; impDescriptor->Name; impDescriptor++)
 	{
-		std::printf("Fixing IAT...\n");
-
+		
 		char* dllName = reinterpret_cast<char*>(pBuff + impDescriptor->Name);
-		HMODULE hDll = LoadLibraryA(dllName);
-		std::printf("Loaded %s\n", dllName);
-
+	//	HMODULE hDll = LoadLibraryA(dllName);
+		std::printf("%s\n", dllName);
 		PIMAGE_THUNK_DATA pOriginalThunkData = reinterpret_cast<PIMAGE_THUNK_DATA>(pBuff + impDescriptor->OriginalFirstThunk);
 		// Why is called ULONG_PTR if is not a pointer ? 
 		ULONG_PTR* pFirstThunk = reinterpret_cast<ULONG_PTR*>(pBuff + impDescriptor->FirstThunk);
@@ -37,12 +35,14 @@ void BasicPE::PrintImports() const
 		{
 			if (!IMAGE_SNAP_BY_ORDINAL((ULONG_PTR)pOriginalThunkData))
 			{
-				// get func name
 				PIMAGE_IMPORT_BY_NAME impName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(pBuff + pOriginalThunkData->u1.AddressOfData);
-				*pFirstThunk = reinterpret_cast<ULONG_PTR>(GetProcAddress(hDll, impName->Name));
-				std::printf("Fixed func: %s at 0x%x\n", impName->Name, pFirstThunk);
+				std::printf("\t\t- %s\n", impName->Name);
+				// get func name
+				//PIMAGE_IMPORT_BY_NAME impName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(pBuff + pOriginalThunkData->u1.AddressOfData);
+				//*pFirstThunk = reinterpret_cast<ULONG_PTR>(GetProcAddress(hDll, impName->Name));
 			}
 			pOriginalThunkData++;
+			// pFirstThunk++;
 		}
 	}
 }

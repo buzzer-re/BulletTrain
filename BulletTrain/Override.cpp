@@ -1,19 +1,42 @@
 #include "Override.h"
 #include <iostream>
 
-
 // Import libraries
 // Fix realocations
 // Run TLS callbacks
 // Run entrypoint/dllMain
 void __stdcall InternalLoader(InjectedCodeData* iData)
 {
-	PIMAGE_DOS_HEADER dosHdr = reinterpret_cast<PIMAGE_DOS_HEADER>(iData->imageBase);
+	ULONG_PTR imageBase = reinterpret_cast<ULONG_PTR>(iData->imageBase);
+	PIMAGE_DOS_HEADER dosHdr = reinterpret_cast<PIMAGE_DOS_HEADER>(imageBase);
 	PIMAGE_NT_HEADERS ntHdr = reinterpret_cast<PIMAGE_NT_HEADERS>((SIZE_T)dosHdr + dosHdr->e_lfanew);
 	// DLL Entrypoint
 	f_DLL_ENTRY_POINT dllMain = reinterpret_cast<f_DLL_ENTRY_POINT>(ntHdr->OptionalHeader.AddressOfEntryPoint + (SIZE_T) iData->imageBase);
 	
 	// Fix imports
+	PIMAGE_DATA_DIRECTORY importDirectory = reinterpret_cast<PIMAGE_DATA_DIRECTORY>(&ntHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
+	PIMAGE_IMPORT_DESCRIPTOR impDescriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(imageBase + importDirectory->VirtualAddress);
+
+	for (; impDescriptor->Name; impDescriptor++)
+	{
+		char* dllName = reinterpret_cast<char*>(imageBase + impDescriptor->Name);
+		HMODULE hModule = iData->pLoadLibraryA(dllName);
+		if (hModule == NULL) return; // something is not correct dude
+
+		PIMAGE_THUNK_DATA pOriginalThunkData = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->OriginalFirstThunk);
+		PIMAGE_THUNK_DATA pFirstThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->FirstThunk);
+
+		for (;pOriginalThunkData->u1.AddressOfData; pOriginalThunkData++, pFirstThunk++)
+		{
+			if (!IMAGE_SNAP_BY_ORDINAL((ULONG_PTR)pOriginalThunkData))
+			{
+				PIMAGE_IMPORT_BY_NAME impName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(imageBase + pOriginalThunkData->u1.AddressOfData);
+				UINT_PTR* thunk = reinterpret_cast<UINT_PTR*>(pFirstThunk);
+				*thunk = iData->pGetProcAddress(hModule, impName->Name);
+
+			}
+		}
+	}
 
 
 	dllMain(nullptr, DLL_PROCESS_ATTACH, nullptr);
@@ -39,13 +62,6 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 
 	LPVOID newImg = ReplaceImage(hProc, newImage, basicPE);
 	if (newImg == nullptr) return false;
-
-	// Temporary, just to parse IAT, reloc and etc (Dev-only)
-	basicPE.ParseBuffer((BYTE*)newImg);
-	basicPE.PrintImports();
-
-	std::printf("End here!\n");
-	return false;
 
 	InjectedCodeData iData;
 	iData.imageBase = newImg;
