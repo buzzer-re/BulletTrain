@@ -1,9 +1,8 @@
 # BulletTrain
 
-BulletTrain is an implementation of the well known PE injection technique called "Manual PE Mapping" or "Reflective PE Injection", where the PE file is manually mapped inside a process and executed from there, without need to use calls like `CreateProcess` or `LoadLibrary`, is often used to bypass Anti-Virus/Cheat solutions.
+BulletTrain is an implementation of the well known PE injection technique called "Manual PE Mapping" or "Reflective PE Injection", where the PE file is manually mapped inside a process and executed from there, without need to use calls like `CreateProcess` or `LoadLibrary`.
 
-
-In the moment, TLS callbacks are not supported.
+At the moment, TLS callbacks are not supported.
 
 ## How this works
 
@@ -44,7 +43,7 @@ Simple as that!
 
 # Install
 
-Go into the [releases] page and grab the executable for your platform, I tested mostly with `x64` architecture, but `x86_32` should works well.
+Go into the [releases](https://github.com/AandersonL/Bulletrain/releases) page and grab the executable for your platform, I tested mostly with `x64` architecture, but `x86_32` should works well.
 
 ## Usage:
 
