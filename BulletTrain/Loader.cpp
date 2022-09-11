@@ -20,7 +20,7 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 
 	if (delta) {
 		if (iData->SafePrint) {
-			std::printf("[+] Applying relocations! [+]\n");
+			std::printf("\t[+] Applying relocations! [+]\n");
 		}
 		// Get reloc directory
 		PIMAGE_DATA_DIRECTORY relocDirectory = reinterpret_cast<PIMAGE_DATA_DIRECTORY>(&ntHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC]);
@@ -50,6 +50,9 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 				// Get the new entry in the relocation table
 				pBaseReloc = reinterpret_cast<PIMAGE_BASE_RELOCATION>(reinterpret_cast<ULONG_PTR>(pBaseReloc) + pBaseReloc->SizeOfBlock);
 			}
+		}
+		if (iData->SafePrint) {
+			std::printf("\t[+] Image realocated successfully! [+]\n");
 		}
 	}
 

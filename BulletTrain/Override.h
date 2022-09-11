@@ -7,6 +7,8 @@
 #include "Loader.h"
 
 
+#define SLEEP_TIME 2000
+
 class RemoteBuffer
 {
 public:

