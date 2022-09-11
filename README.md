@@ -58,7 +58,7 @@ Notice that injection will not work with every process and will need admin privi
 
 ## References
 
-I learned a lot in the following materials:
+I learned a lot on the following materials:
 
 - [Manual DLL mapping from Guided Hacking](https://www.youtube.com/watch?v=qzZTXcBu3cE)
 
