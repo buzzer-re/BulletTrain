@@ -1,6 +1,5 @@
 #include "IOUtils.h"
 
-
 // Just a simple code to read and free some file bytes
 
 File::File(const wchar_t* path)

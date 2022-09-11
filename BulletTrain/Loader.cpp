@@ -20,7 +20,7 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 
 	if (delta) {
 		if (iData->SafePrint) {
-			std::printf("\t[+] Applying relocations! [+]\n");
+			std::puts("\n[+] Applying relocations! [+]\n");
 		}
 		// Get reloc directory
 		PIMAGE_DATA_DIRECTORY relocDirectory = reinterpret_cast<PIMAGE_DATA_DIRECTORY>(&ntHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC]);
@@ -52,7 +52,7 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 			}
 		}
 		if (iData->SafePrint) {
-			std::printf("\t[+] Image realocated successfully! [+]\n");
+			std::puts("[+] Image realocated successfully! [+]\n\n");
 		}
 	}
 
@@ -65,7 +65,7 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 		char* dllName = reinterpret_cast<char*>(imageBase + impDescriptor->Name);
 
 		if (iData->SafePrint) {
-			std::printf("\t[+] Loading %s... [+]\n", dllName);
+			std::printf("[+] Loading %s... [+]\n", dllName);
 		}
 
 		HMODULE hModule = iData->pLoadLibraryA(dllName);
