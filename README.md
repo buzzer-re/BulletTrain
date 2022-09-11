@@ -56,3 +56,12 @@ Notice that injection will not work with every process and will need admin privi
 
 
 
+## References
+
+I learned a lot in the following materials:
+
+- [Manual DLL mapping from Guided Hacking](https://www.youtube.com/watch?v=qzZTXcBu3cE)
+
+- [A relocation class](https://www.youtube.com/watch?v=4MuzfPrewUo)
+
+- [Codeproject about PE injection](https://www.codeproject.com/Articles/12532/Inject-your-code-to-a-Portable-Executable-file#ImplementRelocationTable7_2)
