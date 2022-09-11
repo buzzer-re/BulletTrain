@@ -6,9 +6,7 @@ class BasicPE
 
 public:
 	bool ParseBuffer(BYTE* buff);
-
 	void PrintImports() const;
-
 
 	PIMAGE_DOS_HEADER pDosHeader;
 	PIMAGE_NT_HEADERS pNtHeader;

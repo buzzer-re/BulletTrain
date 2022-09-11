@@ -74,7 +74,7 @@ void __stdcall InternalLoader(InjectedCodeData* iData)
 		PIMAGE_THUNK_DATA pOriginalThunkData = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->OriginalFirstThunk);
 		PIMAGE_THUNK_DATA pFirstThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->FirstThunk);
 
-		for (; pOriginalThunkData->u1.AddressOfData; pOriginalThunkData++, pFirstThunk++)
+		for (; pOriginalThunkData->u1.AddressOfData; ++pOriginalThunkData, ++pFirstThunk)
 		{
 			if (!IMAGE_SNAP_BY_ORDINAL((ULONG_PTR)pOriginalThunkData))
 			{

@@ -4,13 +4,7 @@
 #include <iostream>
 #include <filesystem>
 
-
 namespace fs = std::filesystem;
-
-wchar_t* GetExecName(const wchar_t* full_path)
-{
-
-}
 
 int _tmain(int argc, _TCHAR** argv)
 {
