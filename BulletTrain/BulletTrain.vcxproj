@@ -132,11 +132,13 @@
     <ClCompile Include="BasicPE.cpp" />
     <ClCompile Include="BulletTrain.cpp" />
     <ClCompile Include="IOUtils.cpp" />
+    <ClCompile Include="Loader.cpp" />
     <ClCompile Include="Override.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicPE.h" />
     <ClInclude Include="IOUtils.h" />
+    <ClInclude Include="Loader.h" />
     <ClInclude Include="Override.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

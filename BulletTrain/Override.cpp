@@ -1,58 +1,23 @@
 #include "Override.h"
 #include <iostream>
 
-// Import libraries
-// Fix realocations
-// Run TLS callbacks
-// Run entrypoint/dllMain
-void __stdcall InternalLoader(InjectedCodeData* iData)
-{
-	ULONG_PTR imageBase = reinterpret_cast<ULONG_PTR>(iData->imageBase);
-	PIMAGE_DOS_HEADER dosHdr = reinterpret_cast<PIMAGE_DOS_HEADER>(imageBase);
-	PIMAGE_NT_HEADERS ntHdr = reinterpret_cast<PIMAGE_NT_HEADERS>((SIZE_T)dosHdr + dosHdr->e_lfanew);
-	// DLL Entrypoint
-	f_DLL_ENTRY_POINT dllMain = reinterpret_cast<f_DLL_ENTRY_POINT>(ntHdr->OptionalHeader.AddressOfEntryPoint + (SIZE_T) iData->imageBase);
-	
-	// Fix imports
-	PIMAGE_DATA_DIRECTORY importDirectory = reinterpret_cast<PIMAGE_DATA_DIRECTORY>(&ntHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
-	PIMAGE_IMPORT_DESCRIPTOR impDescriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(imageBase + importDirectory->VirtualAddress);
 
-	for (; impDescriptor->Name; impDescriptor++)
-	{
-		char* dllName = reinterpret_cast<char*>(imageBase + impDescriptor->Name);
-		HMODULE hModule = iData->pLoadLibraryA(dllName);
-		if (hModule == NULL) return; // something is not correct dude
-
-		PIMAGE_THUNK_DATA pOriginalThunkData = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->OriginalFirstThunk);
-		PIMAGE_THUNK_DATA pFirstThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(imageBase + impDescriptor->FirstThunk);
-
-		for (;pOriginalThunkData->u1.AddressOfData; pOriginalThunkData++, pFirstThunk++)
-		{
-			if (!IMAGE_SNAP_BY_ORDINAL((ULONG_PTR)pOriginalThunkData))
-			{
-				PIMAGE_IMPORT_BY_NAME impName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(imageBase + pOriginalThunkData->u1.AddressOfData);
-				UINT_PTR* thunk = reinterpret_cast<UINT_PTR*>(pFirstThunk);
-				*thunk = iData->pGetProcAddress(hModule, impName->Name);
-
-			}
-		}
-	}
-
-
-	dllMain(nullptr, DLL_PROCESS_ATTACH, nullptr);
-}
-
-
-bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
+bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath, bool self)
 {
 	// Read PE
+	std::wprintf(L"[+] Reading PE file %s [+]\n", newImagePath);
 	File newImage(newImagePath);
-	if (!newImage.length) return false;
+	if (!newImage.length) {
+		std::wprintf(L"[-] Unable to open file, is it available/exists ? [-]\n");
+	}
  
+	std::puts("[+] Getting current PID [+]");
 	// Get process PID and Start the PE image replace
 	DWORD pid = GetPID(proc);
 	if (!pid) return false;
 
+	std::printf("[+] Opening process %d [+]\n", pid);
+	// Yep, even if self is true we are going to open our own process
 	HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, NULL, pid);
 
 	if (!hProc || hProc == INVALID_HANDLE_VALUE) return false;
@@ -67,15 +32,27 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 	iData.imageBase = newImg;
 	iData.pGetProcAddress = reinterpret_cast<f_GetProcAddress>(GetProcAddress);
 	iData.pLoadLibraryA = reinterpret_cast<f_LoadLibraryA>(LoadLibraryA);
+	iData.SafePrint = self;
+
+	// Self code injection
+	if (self)
+	{
+		std::puts("\n\n[+] Parsing IAT, realocations and TLS callbacks [+]\n");
+		InternalLoader(&iData);
+		return true;
+	}
+
+
+	// Remote code injection
 
 	RemoteBuffer threadArg(hProc);
 	threadArg.data = reinterpret_cast<LPVOID>(VirtualAllocEx(hProc, NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
-	
+
 	if (!threadArg.data || !WriteProcessMemory(hProc, threadArg.data, &iData, sizeof(iData), NULL))
 	{
 		return false;
 	}
-	
+
 
 	RemoteBuffer threadCode(hProc);
 	threadCode.data = reinterpret_cast<LPVOID>(VirtualAllocEx(hProc, NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
@@ -92,10 +69,7 @@ bool Override::ReplaceImage(const wchar_t* proc, const wchar_t* newImagePath)
 	{
 		return false;
 	}
-
-	system("pause");
-
-
+	
 	return true;
 }
 
@@ -104,26 +78,34 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 {
 	// Alloc image memory
 
-	LPVOID imgMem = VirtualAllocEx(hProc, (LPVOID)pe.pOptionalHeader->ImageBase, pe.pOptionalHeader->SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID imgMem = VirtualAllocEx(hProc, (LPVOID) pe.pOptionalHeader->ImageBase, pe.pOptionalHeader->SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	
 	if (!imgMem)
 	{
-		// Some error handling msg, whatever.. TODO
-		return nullptr;
+		std::printf("[+] Unable to allocate address in the image base 0x%llx! relocations will be applied! [+]\n",(ULONG_PTR) pe.pOptionalHeader->ImageBase);
+		imgMem = VirtualAllocEx(hProc, NULL, pe.pOptionalHeader->SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
+		if (!imgMem) {
+			std::puts("[-] Error on allocating PE memory [-]\n");
+			return nullptr;
+		}
+		std::printf("[+] Allocated PE memory at base address 0x%llx\n", (ULONG_PTR)imgMem);
+		// Ok, something really bad is happening now!
 	}
 
+	std::printf("[+] Allocated memory at 0x%llx [+]\n[+] Copying PE header... [+]\n\n\n", (ULONG_PTR) imgMem);
 	// Get first section entry
 
 	// Write all header info
 	if (!WriteProcessMemory(hProc, imgMem, target.data, pe.pNtHeader->OptionalHeader.SizeOfHeaders, NULL))
 	{
-		std::printf("Unable to copy PE header!");
+		std::printf("[-] Unable to copy PE header! [-]");
 		VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
 		return nullptr;
 	}
 
 
+	std::printf("[+] Writing sections! [+]\n\n");
 	PIMAGE_SECTION_HEADER pSectionHeader = IMAGE_FIRST_SECTION(pe.pNtHeader);
 	// Write sections
 	for (auto i = 0; i < pe.pFileHeader->NumberOfSections; ++i, ++pSectionHeader)
@@ -137,9 +119,12 @@ LPVOID Override::ReplaceImage(HANDLE hProc, const File& target, BasicPE& pe)
 				VirtualFreeEx(hProc, imgMem, 0, MEM_RELEASE);
 				return nullptr;
 			}
+
+			std::printf("\t[+] Written %s at 0x%llx [+]\n", pSectionHeader->Name, (ULONG_PTR)imgMem + pSectionHeader->VirtualAddress);
 		}
 	}
 
+	std::printf("\n[+] Done initial image mapping! [+]\n");
 	return imgMem;
 
 }
